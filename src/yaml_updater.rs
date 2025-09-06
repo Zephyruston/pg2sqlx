@@ -1,10 +1,10 @@
 //! YAML configuration updater module
 //! This module is responsible for updating goctl.yaml with custom type mappings
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TypeMapping {
@@ -36,7 +36,7 @@ impl YamlUpdater {
         let mut file = fs::File::open(config_path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
-        
+
         let config: Config = serde_yaml::from_str(&contents)?;
         Ok(YamlUpdater { config })
     }
@@ -56,8 +56,8 @@ impl YamlUpdater {
         self.config.model.types_map.insert(
             "vector".to_string(),
             TypeMapping {
-                null_type: "sql.NullString".to_string(),
-                type_name: "string".to_string(),
+                null_type: "pgvector.Vector".to_string(),
+                type_name: "pgvector.Vector".to_string(),
                 pkg: Some("github.com/pgvector/pgvector-go".to_string()),
             },
         );
@@ -68,32 +68,32 @@ impl YamlUpdater {
         if fs::metadata(file_path).is_ok() {
             fs::copy(file_path, format!("{}.bak", file_path))?;
         }
-        
+
         let yaml_string = serde_yaml::to_string(&self.config)?;
         let mut file = fs::File::create(file_path)?;
         file.write_all(yaml_string.as_bytes())?;
         Ok(())
     }
-    
+
     pub fn save_to_new_file(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         let yaml_string = serde_yaml::to_string(&self.config)?;
         let mut file = fs::File::create(file_path)?;
         file.write_all(yaml_string.as_bytes())?;
         Ok(())
     }
-    
+
     /// Get the types map as a sorted vector
     pub fn get_sorted_types_map(&self) -> Vec<(&String, &TypeMapping)> {
         let mut types: Vec<(&String, &TypeMapping)> = self.config.model.types_map.iter().collect();
         types.sort_by(|a, b| a.0.cmp(b.0));
         types
     }
-    
+
     /// Get a reference to the config
     pub fn config(&self) -> &Config {
         &self.config
     }
-    
+
     /// Create a new YamlUpdater with a given config
     pub fn with_config(config: Config) -> Self {
         YamlUpdater { config }

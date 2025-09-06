@@ -31,7 +31,11 @@ impl SchemaParser {
     }
 
     /// Parse a PostgreSQL schema file and extract custom types
-    pub fn parse_schema_file(&mut self, file_path: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn parse_schema_file(
+        &mut self,
+        file_path: &str,
+        verbose: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.verbose = verbose;
         let mut file = fs::File::open(file_path)?;
         let mut contents = String::new();
@@ -48,14 +52,16 @@ impl SchemaParser {
 
         while i < lines.len() {
             let line = lines[i].trim();
-            
+
             // Debug output for CREATE TYPE lines
             if self.verbose && line.to_uppercase().starts_with("CREATE TYPE") {
                 println!("Found CREATE TYPE line: {}", line);
             }
 
             // Check for ENUM type definitions
-            if line.to_uppercase().starts_with("CREATE TYPE") && line.to_uppercase().contains("ENUM") {
+            if line.to_uppercase().starts_with("CREATE TYPE")
+                && line.to_uppercase().contains("ENUM")
+            {
                 if self.verbose {
                     println!("Processing ENUM type: {}", line);
                 }
@@ -95,7 +101,7 @@ impl SchemaParser {
         if self.verbose {
             println!("Parsing ENUM from line: {}", start_line);
         }
-        
+
         // Extract type name (between "CREATE TYPE" and "AS ENUM")
         let type_name = if let Some(start_pos) = start_line.find("CREATE TYPE") {
             let start_pos = start_pos + 12; // "CREATE TYPE".len()
@@ -117,15 +123,19 @@ impl SchemaParser {
         if self.verbose {
             println!("Extracted type name: {}", type_name);
         }
-        
+
         // Clean up the type name (remove schema prefix if exists)
-        let type_name = type_name.split('.').next_back().unwrap_or(&type_name).to_string();
+        let type_name = type_name
+            .split('.')
+            .next_back()
+            .unwrap_or(&type_name)
+            .to_string();
         if self.verbose {
             println!("Cleaned type name: {}", type_name);
         }
 
         let mut values = Vec::new();
-        
+
         // Check if this is a single-line ENUM definition
         if start_line.contains(");") {
             // Single-line ENUM
@@ -138,28 +148,29 @@ impl SchemaParser {
             } else {
                 start_line
             };
-            
+
             // Find the part between parentheses
             if let Some(start_pos) = line_without_comments.find('(')
-                && let Some(end_pos) = line_without_comments.find(')') {
-                    let values_part = &line_without_comments[start_pos+1..end_pos];
-                    if self.verbose {
-                        println!("Values part: {}", values_part);
-                    }
-                    
-                    // Split by comma and extract values
-                    let parts: Vec<&str> = values_part.split(',').collect();
-                    for part in parts {
-                        let part = part.trim();
-                        if part.starts_with('\'') && part.ends_with('\'') && part.len() > 2 {
-                            let value = part[1..part.len()-1].to_string();
-                            values.push(value.clone());
-                            if self.verbose {
-                                println!("Found enum value: {}", value);
-                            }
+                && let Some(end_pos) = line_without_comments.find(')')
+            {
+                let values_part = &line_without_comments[start_pos + 1..end_pos];
+                if self.verbose {
+                    println!("Values part: {}", values_part);
+                }
+
+                // Split by comma and extract values
+                let parts: Vec<&str> = values_part.split(',').collect();
+                for part in parts {
+                    let part = part.trim();
+                    if part.starts_with('\'') && part.ends_with('\'') && part.len() > 2 {
+                        let value = part[1..part.len() - 1].to_string();
+                        values.push(value.clone());
+                        if self.verbose {
+                            println!("Found enum value: {}", value);
                         }
                     }
                 }
+            }
         } else {
             // Multi-line ENUM
             if self.verbose {
@@ -173,7 +184,7 @@ impl SchemaParser {
                 if self.verbose {
                     println!("Processing line in enum definition: {}", line);
                 }
-                
+
                 // Check if we're entering the enum definition
                 if line.to_uppercase().contains("AS ENUM") {
                     in_enum_definition = true;
@@ -181,7 +192,7 @@ impl SchemaParser {
                         println!("Entered enum definition");
                     }
                 }
-                
+
                 // If we're in the enum definition, extract values
                 if in_enum_definition {
                     // Extract values between parentheses
@@ -190,24 +201,24 @@ impl SchemaParser {
                     } else {
                         line
                     };
-                    
+
                     if self.verbose {
                         println!("Line without comments: {}", line_without_comments);
                     }
-                    
+
                     // Look for values in the format 'value_name'
                     let parts: Vec<&str> = line_without_comments.split(',').collect();
                     for part in parts {
                         let part = part.trim();
                         if part.starts_with('\'') && part.ends_with('\'') && part.len() > 2 {
-                            let value = part[1..part.len()-1].to_string();
+                            let value = part[1..part.len() - 1].to_string();
                             values.push(value.clone());
                             if self.verbose {
                                 println!("Found enum value: {}", value);
                             }
                         }
                     }
-                    
+
                     // Check if this is the end of the enum definition
                     if line_without_comments.contains(");") {
                         if self.verbose {
@@ -216,7 +227,7 @@ impl SchemaParser {
                         break;
                     }
                 }
-                
+
                 *index += 1;
             }
         }
